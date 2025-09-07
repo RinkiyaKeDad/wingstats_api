@@ -1,8 +1,14 @@
-use axum::{Router, response::Json, routing::post};
+use axum::http::{Method, header::CONTENT_TYPE};
 use dotenv::dotenv;
-use serde_json::Value;
+use route::create_router;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+
+mod handler;
+mod model;
+mod route;
+mod schema;
 
 pub struct AppState {
     db: MySqlPool,
@@ -27,14 +33,13 @@ async fn main() {
         }
     };
 
-    let app = Router::new()
-        .route("/", post(save_stats))
-        .with_state(Arc::new(AppState { db: pool.clone() }));
+    let cors = CorsLayer::new()
+        .allow_methods([Method::GET, Method::POST])
+        .allow_origin(Any)
+        .allow_headers([CONTENT_TYPE]);
+
+    let app = create_router(Arc::new(AppState { db: pool.clone() })).layer(cors);
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-async fn save_stats(Json(payload): Json<serde_json::Value>) -> Json<Value> {
-    Json(payload)
 }
