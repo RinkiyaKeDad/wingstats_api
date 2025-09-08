@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::{
     Json,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
@@ -14,7 +14,7 @@ pub async fn player_list_handler(
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Query with macro
-    let players = sqlx::query_as!(PlayerModel, r#"SELECT * FROM players ORDER by player_id"#,)
+    let players = sqlx::query_as!(PlayerModel, r#"SELECT * FROM players ORDER by player_id"#)
         .fetch_all(&data.db)
         .await
         .map_err(|e| {
@@ -32,6 +32,43 @@ pub async fn player_list_handler(
     });
 
     Ok(Json(json_response))
+}
+
+pub async fn get_player_handler(
+    Path(player_id): Path<String>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let query_result = sqlx::query_as!(
+        PlayerModel,
+        r#"SELECT * FROM players WHERE player_id = ?"#,
+        &player_id
+    )
+    .fetch_one(&data.db)
+    .await;
+
+    match query_result {
+        Ok(player) => {
+            let player_response = serde_json::json!({
+                "status" : "success",
+                "data": serde_json::json!({
+                    "player": player
+                })
+            });
+
+            Ok(Json(player_response))
+        }
+        Err(sqlx::Error::RowNotFound) => {
+            let error_response = serde_json::json!({
+                "status": "fail",
+                "message": format!("Player with ID: {} not found", player_id)
+            });
+            Err((StatusCode::NOT_FOUND, Json(error_response)))
+        }
+        Err(e) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({"status": "error", "message": format!("{:?}", e)})),
+        )),
+    }
 }
 
 pub async fn create_player_handler(
