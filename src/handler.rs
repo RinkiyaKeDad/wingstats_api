@@ -10,7 +10,30 @@ use serde_json::json;
 
 use crate::{AppState, model::PlayerModel, schema::PlayerSchema};
 
-// ...
+pub async fn player_list_handler(
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // Query with macro
+    let players = sqlx::query_as!(PlayerModel, r#"SELECT * FROM players ORDER by player_id"#,)
+        .fetch_all(&data.db)
+        .await
+        .map_err(|e| {
+            let error_response = serde_json::json!({
+                "status": "error",
+                "message": format!("Database error: { }", e),
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error_response))
+        })?;
+
+    let json_response = serde_json::json!({
+        "status": "ok",
+        "count": players.len(),
+        "notes": players
+    });
+
+    Ok(Json(json_response))
+}
+
 pub async fn create_player_handler(
     State(data): State<Arc<AppState>>,
     Json(body): Json<PlayerSchema>,

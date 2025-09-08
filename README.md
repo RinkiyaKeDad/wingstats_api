@@ -3,7 +3,8 @@
 Instructions for testing:
 
 - `curl -X POST -H "Content-Type: application/json" -d '{"someone": "60", "arsh": "110"}' http://localhost:3000/`
-- `curl -X POST -H "Content-Type: application/json" -d '{"player_id": 123, "name": "arsh"}' http://localhost:3000/api/v1/players`
+- `curl -X POST -H "Content-Type: application/json" -d '{"name": "shaamik"}' http://localhost:3000/api/v1/players`
+- `curl -X GET http://localhost:3000/api/v1/players`
 
 Connect to running mysql DB:
 
