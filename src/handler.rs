@@ -78,15 +78,18 @@ pub async fn create_player_handler(
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Insert
     let player_id = uuid::Uuid::new_v4();
-    let query_result = sqlx::query(r#"INSERT INTO players (player_id, name) VALUES ($1, $2)"#)
-        .bind(&player_id)
-        .bind(&body.name)
-        .execute(&data.db)
-        .await
-        .map_err(|err: sqlx::Error| err.to_string());
+    let player = sqlx::query_as!(
+        PlayerModel,
+        r#"INSERT INTO players (player_id, name) VALUES ($1, $2) RETURNING *"#,
+        &player_id,
+        &body.name
+    )
+    .fetch_one(&data.db)
+    .await
+    .map_err(|err: sqlx::Error| err.to_string());
 
     // Duplicate err check
-    if let Err(err) = query_result {
+    if let Err(err) = player {
         if err.to_string().contains("duplicate key value") {
             let error_response = serde_json::json!({
                 "status": "error",
@@ -100,21 +103,6 @@ pub async fn create_player_handler(
             Json(json!({"status": "error","message": format!("{:?}", err)})),
         ));
     }
-
-    // Get inserted note by ID with query macro
-    let player = sqlx::query_as!(
-        PlayerModel,
-        r#"SELECT * FROM players WHERE player_id = $1"#,
-        &player_id
-    )
-    .fetch_one(&data.db)
-    .await
-    .map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({"status": "error","message": format!("{:?}", e)})),
-        )
-    })?;
 
     let player_response = json!({
             "status": "success",
