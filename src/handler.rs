@@ -7,6 +7,7 @@ use axum::{
     response::IntoResponse,
 };
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::{AppState, model::PlayerModel, schema::PlayerSchema};
 
@@ -35,12 +36,12 @@ pub async fn player_list_handler(
 }
 
 pub async fn get_player_handler(
-    Path(player_id): Path<String>,
+    Path(player_id): Path<Uuid>,
     State(data): State<Arc<AppState>>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let query_result = sqlx::query_as!(
         PlayerModel,
-        r#"SELECT * FROM players WHERE player_id = ?"#,
+        r#"SELECT * FROM players WHERE player_id = $1"#,
         &player_id
     )
     .fetch_one(&data.db)
@@ -76,8 +77,8 @@ pub async fn create_player_handler(
     Json(body): Json<PlayerSchema>,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     // Insert
-    let player_id = uuid::Uuid::new_v4().to_string();
-    let query_result = sqlx::query(r#"INSERT INTO players (player_id, name) VALUES (?, ?)"#)
+    let player_id = uuid::Uuid::new_v4();
+    let query_result = sqlx::query(r#"INSERT INTO players (player_id, name) VALUES ($1, $2)"#)
         .bind(&player_id)
         .bind(&body.name)
         .execute(&data.db)
@@ -86,7 +87,7 @@ pub async fn create_player_handler(
 
     // Duplicate err check
     if let Err(err) = query_result {
-        if err.contains("Duplicate entry") {
+        if err.to_string().contains("duplicate key value") {
             let error_response = serde_json::json!({
                 "status": "error",
                 "message": "Player already exists",
@@ -103,7 +104,7 @@ pub async fn create_player_handler(
     // Get inserted note by ID with query macro
     let player = sqlx::query_as!(
         PlayerModel,
-        r#"SELECT * FROM players WHERE player_id = ?"#,
+        r#"SELECT * FROM players WHERE player_id = $1"#,
         &player_id
     )
     .fetch_one(&data.db)

@@ -1,7 +1,7 @@
 use axum::http::{Method, header::CONTENT_TYPE};
 use dotenv::dotenv;
 use route::create_router;
-use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
+use sqlx::postgres::{PgPool, PgPoolOptions};
 use std::sync::Arc;
 use tower_http::cors::{Any, CorsLayer};
 
@@ -11,14 +11,14 @@ mod route;
 mod schema;
 
 pub struct AppState {
-    db: MySqlPool,
+    db: PgPool,
 }
 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let pool = match MySqlPoolOptions::new()
+    let pool = match PgPoolOptions::new()
         .max_connections(10)
         .connect(&db_url)
         .await

@@ -12,3 +12,11 @@ Connect to running mysql DB:
 - `docker exec -it 083671142ba4 bash`
 - `mysql -u admin -p -D wingstats`
 - `SHOW TABLES;` `DESCRIBE players;`
+
+Connect to running Postgres DB:
+
+- `docker exec -it 84bc3e20ec8d`
+- `psql -U admin -d wingstats`
+- `\dt` -> Show Tables
+- `\d players` -> Describe players
+- `SELECT * from players;` -> works for both DBs
