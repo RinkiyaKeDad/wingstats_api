@@ -113,3 +113,33 @@ pub async fn create_player_handler(
 
     Ok(Json(player_response))
 }
+
+pub async fn delete_player_handler(
+    Path(player_id): Path<Uuid>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    // Insert
+    let query_result = sqlx::query(r#"DELETE FROM players WHERE player_id = $1"#)
+        .bind(&player_id)
+        .execute(&data.db)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "status": "error",
+                    "message": format!("{:?}", e)
+                })),
+            )
+        })?;
+
+    if query_result.rows_affected() == 0 {
+        let error_response = serde_json::json!({
+            "status": "error",
+            "message": format!("Player with ID: {} not found", player_id)
+        });
+        return Err((StatusCode::NOT_FOUND, Json(error_response)));
+    }
+
+    Ok(StatusCode::OK)
+}
